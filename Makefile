@@ -1,6 +1,6 @@
 all: graphics
 
-graphics: world
+graphics:
 	go build -o display graphics.go
 
 world:
