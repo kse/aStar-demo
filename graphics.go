@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/banthar/Go-SDL/sdl"
+	//pqueue "github.com/nu7hatch/gopqueue"
 	"fmt"
 )
 
@@ -12,13 +13,14 @@ const (
 	GOAL  = 0x679B00
 	LINE  = 0xA60000
 	// Size of rectangles	
-	SIZE  = 10
+	SIZE  = 5
 )
 
 type Field struct{
 	X int
 	Y int
 	T int
+	p int
 }
 
 func (f *Field) ParseRect(r *sdl.Rect, color int) {
@@ -29,112 +31,28 @@ func (f *Field) ParseRect(r *sdl.Rect, color int) {
 
 func (f *Field) toRect() *sdl.Rect{
 	return &sdl.Rect{
-		int16(f.X*SIZE) + 1,
-		int16(f.Y*SIZE) + 1,
-		SIZE - 1,
-		SIZE - 1,
+		X: int16(f.X*SIZE) + 1,
+		Y: int16(f.Y*SIZE) + 1,
+		W: SIZE - 1,
+		H: SIZE - 1,
 	}
 }
 
-func fillBox(w [][]int, screen *sdl.Surface, r *sdl.Rect, color int) {
-	if w[(r.X/SIZE)][(r.Y/SIZE)] == color {
-		return
-	}
-
-	w[(r.X/SIZE)][(r.Y/SIZE)] = color
-	screen.FillRect(r, uint32(color))
-	screen.UpdateRect(
-		int32(r.X),
-		int32(r.Y),
-		uint32(r.W),
-		uint32(r.H));
+func (f *Field) ToFourTuple() (X int32, Y int32, W uint32, H uint32){
+	r := f.toRect();
+	//fmt.Println("Return fourtuple:", int32(r.X), int32(r.Y), uint32(r.W), uint32(r.H));
+	return int32(r.X), int32(r.Y), uint32(r.W), uint32(r.H);
 }
 
-func drawMouseMotion(w [][]int, screen *sdl.Surface, e *sdl.MouseMotionEvent) {
-	var color int;
-	if e.State == sdl.BUTTON_LEFT {
-		color = WALL
-	} else {
-		color = OPEN
-	}
-
-	drawLine(w, screen,
-		&Field{
-			X: int(e.X) / SIZE,
-			Y: int(e.Y) / SIZE,
-		},
-		&Field{
-			X: (int(e.X) - int(e.Xrel))/SIZE,
-			Y: (int(e.Y) - int(e.Yrel))/SIZE,
-		},
-		color)
-}
-
-func drawLine(w [][]int, screen *sdl.Surface, from *Field, to *Field, color int) {
-	var x1, y1 int = to.X*SIZE, to.Y*SIZE;
-	var x0, y0 int = from.X*SIZE, from.Y*SIZE;
-	var sx, sy int
-	var err, e2 int
-
-	dx := abs(x1 - x0);
-	dy := abs(y1 - y0);
-
-	if x0 < x1 {
-		sx = 1
-	} else {
-		sx = -1
-	}
-
-	if y0 < y1 {
-		sy = 1
-	} else {
-		sy = -1
-	}
-
-	if dx > dy {
-		err = dx/2
-	} else {
-		err = -dy/2
-	}
-
-	for true {
-		r := &sdl.Rect{
-				int16(x0 - (x0%SIZE) + 1),
-				int16(y0 - (y0%SIZE) + 1),
-				SIZE - 1,
-				SIZE - 1}
-
-		fillBox(w, screen, r, color)
-
-		if x0 == x1 && y0 == y1 {
-			break
-		}
-
-		e2 = err
-
-		if e2 > -dx {
-			err -= dy
-			x0 += sx
-		}
-
-		if e2 < dy {
-			err += dx
-			y0 += sy
-		}
-	}
-}
-
-func abs(v int) int{
-	if v < 0 {
-		return v * -1
-	}
-
-	return v
+/*
+ * The star of the show!
+*/
+func aStar(w [][]Field, screen *sdl.Surface, start *Field, goal *Field) {
 }
 
 func main() {
 	// Contains our world, which is simply an array of types
-	var world [][]int
+	var world [][]Field
 	var start *Field;
 	var goal *Field;
 
@@ -151,11 +69,13 @@ func main() {
 		sdl.HWSURFACE | sdl.DOUBLEBUF | sdl.FULLSCREEN)
 
 	// Initialize our world
-	world = make([][]int, v_info.Current_w)
+	world = make([][]Field, v_info.Current_w)
 	for i := range world {
-		world[i] = make([]int, v_info.Current_h)
+		world[i] = make([]Field, v_info.Current_h)
 		for j := range world[i] {
-			world[i][j] = OPEN
+			world[i][j].X = i;
+			world[i][j].Y = j;
+			world[i][j].T = OPEN;
 		}
 	}
 
@@ -188,11 +108,7 @@ func main() {
 				if e.Keysym.Sym == sdl.K_ESCAPE {
 					return
 				}
-
-				//e.Keysym.Mod != sdl.K_RCTRL
-				//e.Keysym.Mod != sdl.K_LCTRL
 			case *sdl.MouseMotionEvent:
-				//fmt.Println("The state is:", e.State)
 				if e.State == sdl.BUTTON_LEFT || e.State == sdl.BUTTON_WHEELUP {
 					drawMouseMotion(world, screen, e)
 				}
@@ -206,22 +122,21 @@ func main() {
 							// Left mouse button with s, set new start point
 							if start == nil {
 								start = new(Field)
-								start.ParseRect(r, START)
+								start.ParseRect(r, OPEN)
 
-								fillBox(world, screen, r, START);
+								fillBox(screen, start, START);
 							} else {
-								fillBox(world, screen,
-									start.toRect(), OPEN);
+								fillBox(screen, start, OPEN);
 
-								start.ParseRect(r, START);
-								fillBox(world, screen, r, START);
+								start.ParseRect(r, OPEN);
+								fillBox(screen, start, START);
 							}
 
 							// Draw a straight goddamn line! YAY!
 							if start != nil && goal != nil {
 								drawLine(world, screen, start, goal, LINE)
-								fillBox(world, screen, start.toRect(), START);
-								fillBox(world, screen, goal.toRect(), GOAL);
+								fillBox(screen, &world[start.X][start.Y], START);
+								fillBox(screen, &world[goal.X][goal.Y], GOAL);
 							}
 						} else if state[sdl.K_g] == 1 {
 							// Left mouse button with g, set new goal point
@@ -229,21 +144,28 @@ func main() {
 								goal = new(Field)
 								goal.ParseRect(r, START)
 
-								fillBox(world, screen, r, GOAL);
+								fillBox(screen, goal, GOAL);
 							} else {
-								fillBox(world, screen,
-									goal.toRect(), OPEN);
-								goal.X = int(r.X/SIZE);
-								goal.Y = int(r.Y/SIZE);
-								fillBox(world, screen, r, GOAL);
+								fillBox(screen, goal, OPEN);
+								goal.ParseRect(r, OPEN);
+								fillBox(screen, goal, GOAL);
+							}
+
+							// Draw a straight goddamn line! YAY!
+							if start != nil && goal != nil {
+								drawLine(world, screen, start, goal, LINE)
+								fillBox(screen, &world[start.X][start.Y], START);
+								fillBox(screen, &world[goal.X][goal.Y], GOAL);
 							}
 						} else {
 							// No relevant modifiers were pressed, color the field.
+							var f *Field = &world[(r.X/SIZE)][(r.Y/SIZE)];
+							//fmt.Println("Click on", f);
 
-							if world[(r.X/SIZE)][(r.Y/SIZE)] == OPEN {
-								fillBox(world, screen, r, WALL)
+							if f.T == OPEN {
+								fillBox(screen, f, WALL)
 							} else {
-								fillBox(world, screen, r, OPEN)
+								fillBox(screen, f, OPEN)
 							}
 						}
 					}
@@ -294,4 +216,92 @@ func drawSquare(screen *sdl.Surface) (x, y int) {
 	}
 
 	return SIZE, SIZE
+}
+
+func drawLine(w [][]Field, screen *sdl.Surface, from *Field, to *Field, color int) {
+	var x1, y1 int = to.X*SIZE, to.Y*SIZE;
+	var x0, y0 int = from.X*SIZE, from.Y*SIZE;
+	var sx, sy int
+	var err, e2 int
+	//var f *Field = new(Field)
+
+	dx := abs(x1 - x0);
+	dy := abs(y1 - y0);
+
+	if x0 < x1 {
+		sx = 1
+	} else {
+		sx = -1
+	}
+
+	if y0 < y1 {
+		sy = 1
+	} else {
+		sy = -1
+	}
+
+	if dx > dy {
+		err = dx/2
+	} else {
+		err = -dy/2
+	}
+
+	for true {
+		fillBox(screen, &w[(x0 - (x0%SIZE) + 1)/SIZE][(y0 - (y0%SIZE) + 1)/SIZE], color)
+
+		if x0 == x1 && y0 == y1 {
+			break
+		}
+
+		e2 = err
+
+		if e2 > -dx {
+			err -= dy
+			x0 += sx
+		}
+
+		if e2 < dy {
+			err += dx
+			y0 += sy
+		}
+	}
+}
+
+//func fillBox(w [][]int, screen *sdl.Surface, r *sdl.Rect, color int) {
+func fillBox(screen *sdl.Surface, f *Field, color int) {
+	if f.T == color {
+		return
+	}
+
+	f.T = color
+	screen.FillRect(f.toRect(), uint32(color))
+	screen.UpdateRect(f.ToFourTuple());
+}
+
+func drawMouseMotion(w [][]Field, screen *sdl.Surface, e *sdl.MouseMotionEvent) {
+	var color int;
+	if e.State == sdl.BUTTON_LEFT {
+		color = WALL
+	} else {
+		color = OPEN
+	}
+
+	drawLine(w, screen,
+		&Field{
+			X: int(e.X) / SIZE,
+			Y: int(e.Y) / SIZE,
+		},
+		&Field{
+			X: (int(e.X) - int(e.Xrel))/SIZE,
+			Y: (int(e.Y) - int(e.Yrel))/SIZE,
+		},
+		color)
+}
+
+func abs(v int) int{
+	if v < 0 {
+		return v * -1
+	}
+
+	return v
 }
