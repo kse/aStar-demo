@@ -21,6 +21,88 @@ type Field struct{
 	Y int
 	T int
 	p int
+	right *Field
+	left  *Field
+	lsize int
+	rsize int
+	prio  float32
+}
+
+func (this *Field) HeapInsert(f *Field) {
+	if f == this {
+		return;
+	}
+
+	if f.prio > this.prio {
+		if this.lsize > this.rsize {
+			if this.right == nil {
+				this.right = f;
+			} else {
+				this.right.HeapInsert(f);
+			}
+			this.rsize++;
+		} else {
+			if this.left == nil {
+				this.left = f;
+			} else {
+				this.left.HeapInsert(f);
+			}
+			this.lsize++;
+		}
+	} else {
+		f.right = this.right;
+		f.rsize = this.rsize;
+
+		f.left = this.left;
+		f.lsize = this.lsize;
+
+		this.lsize = 0;
+		this.rsize = 0;
+
+		if f.lsize > f.lsize {
+			f.right.HeapInsert(this);
+		} else {
+			f.left.HeapInsert(this);
+		}
+	}
+}
+
+func (this *Field) HeapExtractMin() (f1, f2 *Field){
+	var newRoot *Field = nil;
+
+	if this.right == nil && this.left == nil {
+	} else if this.right == nil {
+		newRoot = this.left
+	} else if this.left == nil {
+		newRoot = this.right
+	} else {
+		if this.left.prio < this.right.prio {
+			newRoot = this.left;
+			newRoot, newLeft := this.left.HeapExtractMin();
+
+			newRoot.lsize = newLeft.lsize + newLeft.rsize + 1;
+			newRoot.left  = newLeft;
+
+			newRoot.rsize = this.rsize;
+			newRoot.right = this.right;
+		} else {
+			newRoot = this.right;
+			newRoot, newRight := this.right.HeapExtractMin();
+
+			newRoot.rsize = newRight.rsize + newRight.lsize + 1;
+			newRoot.right  = newRight;
+
+			newRoot.lsize = this.lsize;
+			newRoot.left = this.left;
+		}
+	}
+
+	this.lsize = 0;
+	this.rsize = 0;
+	this.right = nil;
+	this.left = nil;
+
+	return this, newRoot;
 }
 
 func (f *Field) ParseRect(r *sdl.Rect, color int) {
@@ -44,10 +126,16 @@ func (f *Field) ToFourTuple() (X int32, Y int32, W uint32, H uint32){
 	return int32(r.X), int32(r.Y), uint32(r.W), uint32(r.H);
 }
 
+func (f *Field) GetNeighbours(world [][]Field, ch chan<- *Field) {
+}
+
 /*
  * The star of the show!
 */
 func aStar(w [][]Field, screen *sdl.Surface, start *Field, goal *Field) {
+	drawLine(w, screen, start, goal, LINE)
+	fillBox(screen, &w[start.X][start.Y], START);
+	fillBox(screen, &w[goal.X][goal.Y], GOAL);
 }
 
 func main() {
@@ -132,11 +220,8 @@ func main() {
 								fillBox(screen, start, START);
 							}
 
-							// Draw a straight goddamn line! YAY!
 							if start != nil && goal != nil {
-								drawLine(world, screen, start, goal, LINE)
-								fillBox(screen, &world[start.X][start.Y], START);
-								fillBox(screen, &world[goal.X][goal.Y], GOAL);
+								aStar(world, screen, start, goal)
 							}
 						} else if state[sdl.K_g] == 1 {
 							// Left mouse button with g, set new goal point
@@ -151,11 +236,8 @@ func main() {
 								fillBox(screen, goal, GOAL);
 							}
 
-							// Draw a straight goddamn line! YAY!
 							if start != nil && goal != nil {
-								drawLine(world, screen, start, goal, LINE)
-								fillBox(screen, &world[start.X][start.Y], START);
-								fillBox(screen, &world[goal.X][goal.Y], GOAL);
+								aStar(world, screen, start, goal)
 							}
 						} else {
 							// No relevant modifiers were pressed, color the field.
