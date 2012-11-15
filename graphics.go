@@ -13,84 +13,123 @@ const (
 	GOAL  = 0x679B00
 	LINE  = 0xA60000
 	// Size of rectangles	
-	SIZE  = 5
+	SIZE  = 10
 )
 
 type Field struct{
 	X int
 	Y int
 	T int
-	p int
-	right *Field
 	left  *Field
+	right *Field
 	lsize int
 	rsize int
 	prio  float32
 }
 
-func (this *Field) HeapInsert(f *Field) {
+func (this *Field) HeapInsert(f *Field) (newRoot *Field){
 	if f == this {
-		return;
+		return this;
 	}
 
-	if f.prio > this.prio {
+	if this == nil {
+		return f;
+	}
+
+	//fmt.Println("Inserting child", f,"into ", this);
+
+	if f.prio >= this.prio {
 		if this.lsize > this.rsize {
 			if this.right == nil {
 				this.right = f;
 			} else {
-				this.right.HeapInsert(f);
+				this.right = this.right.HeapInsert(f);
 			}
 			this.rsize++;
 		} else {
 			if this.left == nil {
 				this.left = f;
 			} else {
-				this.left.HeapInsert(f);
+				this.left = this.left.HeapInsert(f);
 			}
 			this.lsize++;
 		}
+		newRoot = this;
 	} else {
 		f.right = this.right;
 		f.rsize = this.rsize;
 
-		f.left = this.left;
+		f.left  = this.left;
 		f.lsize = this.lsize;
 
 		this.lsize = 0;
 		this.rsize = 0;
 
-		if f.lsize > f.lsize {
-			f.right.HeapInsert(this);
+		this.right = nil;
+		this.left = nil
+
+		if f.lsize > f.rsize {
+			f.rsize++;
+			f.right = f.right.HeapInsert(this);
 		} else {
-			f.left.HeapInsert(this);
+			f.lsize++;
+			f.left = f.left.HeapInsert(this);
 		}
+
+		newRoot = f;
 	}
+
+	return newRoot;
 }
 
-func (this *Field) HeapExtractMin() (f1, f2 *Field){
-	var newRoot *Field = nil;
+/*
+ * Extract minimum element (the root from this heap.
+ * This involves finding a new root element, and returning
+ * the pointer of this
+ */
+func (this *Field) HeapExtractMin() (f1, newRoot *Field){
+	//fmt.Println("In extractmin, root:", this);
 
 	if this.right == nil && this.left == nil {
+		// If both right and left are null, we just return ourselves
+		// and a nil newRoot, because the heap is then empty
 	} else if this.right == nil {
+		// If our right child is null, return our left child,
+		// which we know is not null.
 		newRoot = this.left
 	} else if this.left == nil {
+		// If our left child is null, return our right child,
+		// which we know is not null.
 		newRoot = this.right
 	} else {
+		// When we're here we know that neither right nor left
+		// child are nil, and it all comes down to finding the
+		// minimum of the two
 		if this.left.prio < this.right.prio {
-			newRoot = this.left;
-			newRoot, newLeft := this.left.HeapExtractMin();
+			var newLeft *Field;
+			if this == this.left {
+				panic("This and left are equal");
+			}
+			newRoot, newLeft = this.left.HeapExtractMin();
 
-			newRoot.lsize = newLeft.lsize + newLeft.rsize + 1;
-			newRoot.left  = newLeft;
+			if newLeft != nil {
+				newRoot.left  = newLeft;
+				newRoot.lsize = newLeft.lsize + newLeft.rsize + 1;
+			}
 
-			newRoot.rsize = this.rsize;
 			newRoot.right = this.right;
+			newRoot.rsize = this.rsize;
 		} else {
-			newRoot = this.right;
-			newRoot, newRight := this.right.HeapExtractMin();
+			var newRight *Field;
+			if this == this.right {
+				panic("This and right are equal");
+			}
+			newRoot, newRight = this.right.HeapExtractMin();
 
-			newRoot.rsize = newRight.rsize + newRight.lsize + 1;
-			newRoot.right  = newRight;
+			if newRight != nil {
+				newRoot.right  = newRight;
+				newRoot.rsize = newRight.rsize + newRight.lsize + 1;
+			}
 
 			newRoot.lsize = this.lsize;
 			newRoot.left = this.left;
@@ -126,7 +165,37 @@ func (f *Field) ToFourTuple() (X int32, Y int32, W uint32, H uint32){
 	return int32(r.X), int32(r.Y), uint32(r.W), uint32(r.H);
 }
 
-func (f *Field) GetNeighbours(world [][]Field, ch chan<- *Field) {
+func (f *Field) GetNeighbours(w [][]Field, ch chan<- *Field) {
+	lx := (len(w) - 1)
+	ly := (len(w[0]) - 1)
+
+	if f.X < lx {
+		ch <- &w[f.X + 1][f.Y];
+
+		if f.Y > 0 {
+			ch <- &w[f.X][f.Y-1];
+			ch <- &w[f.X + 1][f.Y-1];
+		}
+	}
+
+	if f.Y < ly {
+		ch <- &w[f.X][f.Y + 1]
+
+		if f.X > 0 {
+			ch <- &w[f.X - 1][f.Y];
+			ch <- &w[f.X - 1][f.Y + 1];
+		}
+	}
+
+	if f.Y > 0 && f.X > 0 {
+		ch <- &w[f.X - 1][f.Y - 1];
+	}
+
+	if f.Y < ly && f.X < lx {
+		ch <- &w[f.X + 1][f.Y + 1];
+	}
+
+	close(ch);
 }
 
 /*
@@ -136,6 +205,25 @@ func aStar(w [][]Field, screen *sdl.Surface, start *Field, goal *Field) {
 	drawLine(w, screen, start, goal, LINE)
 	fillBox(screen, &w[start.X][start.Y], START);
 	fillBox(screen, &w[goal.X][goal.Y], GOAL);
+
+	var ch chan *Field = make(chan *Field);
+
+	go start.GetNeighbours(w, ch);
+
+	fmt.Println("First field was:", start);
+	start.prio = float32(start.X + start.Y)
+	for i := range ch {
+		i.prio = float32(i.X + i.Y);
+		fmt.Println("Inserting element:", i);
+		start = start.HeapInsert(i);
+	}
+
+	var min *Field;
+
+	for start != nil {
+		min, start = start.HeapExtractMin();
+		fmt.Println("Field", min);
+	}
 }
 
 func main() {
@@ -154,7 +242,7 @@ func main() {
 		int(v_info.Current_w),
 		int(v_info.Current_h),
 		32,
-		sdl.HWSURFACE | sdl.DOUBLEBUF | sdl.FULLSCREEN)
+		sdl.HWSURFACE | sdl.DOUBLEBUF)
 
 	// Initialize our world
 	world = make([][]Field, v_info.Current_w)
@@ -164,6 +252,8 @@ func main() {
 			world[i][j].X = i;
 			world[i][j].Y = j;
 			world[i][j].T = OPEN;
+			world[i][j].lsize = 0;
+			world[i][j].rsize = 0;
 		}
 	}
 
