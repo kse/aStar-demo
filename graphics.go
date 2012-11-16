@@ -2,19 +2,30 @@ package main
 
 import (
 	"github.com/banthar/Go-SDL/sdl"
-	//pqueue "github.com/nu7hatch/gopqueue"
 	"fmt"
+	"math"
 )
 
 const (
-	OPEN  = 0x33CCCC
-	WALL  = 0xFF4040
-	START = 0xFF7373
-	GOAL  = 0x679B00
-	LINE  = 0xA60000
+	OPEN  = 0x9FEE00
+	WALL  = 0xA60000
+
+	START = 0x008500
+	GOAL  = 0x95004B
+
+	PATH = 0xFF0000
+
+	OPENSET   = 0xE6399B
+	CLOSEDSET = 0xCD0074
+
 	// Size of rectangles	
 	SIZE  = 10
 )
+
+type Paint struct {
+	f *Field
+	c int
+}
 
 type Field struct{
 	X int
@@ -24,8 +35,16 @@ type Field struct{
 	right *Field
 	lsize int
 	rsize int
-	prio  float32
+	f  float64  // Distance from start + estimated distance to goal
+	g  int      // Distance from start
+	c  bool
+	o  bool
+	origin *Field
 }
+
+var paint_chan chan *Paint;
+var field_chan chan *Field;
+var read_field chan *Field;
 
 func (this *Field) HeapInsert(f *Field) (newRoot *Field){
 	if f == this {
@@ -36,9 +55,7 @@ func (this *Field) HeapInsert(f *Field) (newRoot *Field){
 		return f;
 	}
 
-	//fmt.Println("Inserting child", f,"into ", this);
-
-	if f.prio >= this.prio {
+	if f.f >= this.f {
 		if this.lsize > this.rsize {
 			if this.right == nil {
 				this.right = f;
@@ -88,8 +105,6 @@ func (this *Field) HeapInsert(f *Field) (newRoot *Field){
  * the pointer of this
  */
 func (this *Field) HeapExtractMin() (f1, newRoot *Field){
-	//fmt.Println("In extractmin, root:", this);
-
 	if this.right == nil && this.left == nil {
 		// If both right and left are null, we just return ourselves
 		// and a nil newRoot, because the heap is then empty
@@ -105,7 +120,7 @@ func (this *Field) HeapExtractMin() (f1, newRoot *Field){
 		// When we're here we know that neither right nor left
 		// child are nil, and it all comes down to finding the
 		// minimum of the two
-		if this.left.prio < this.right.prio {
+		if this.left.f < this.right.f {
 			var newLeft *Field;
 			if this == this.left {
 				panic("This and left are equal");
@@ -161,69 +176,108 @@ func (f *Field) toRect() *sdl.Rect{
 
 func (f *Field) ToFourTuple() (X int32, Y int32, W uint32, H uint32){
 	r := f.toRect();
-	//fmt.Println("Return fourtuple:", int32(r.X), int32(r.Y), uint32(r.W), uint32(r.H));
 	return int32(r.X), int32(r.Y), uint32(r.W), uint32(r.H);
 }
 
-func (f *Field) GetNeighbours(w [][]Field, ch chan<- *Field) {
-	lx := (len(w) - 1)
-	ly := (len(w[0]) - 1)
+func GetNeighbours(w [][]Field, ch chan<- *Field) {
+	for f := range field_chan {
+		lx := (len(w) - 1)
+		ly := (len(w[0]) - 1)
+		//fmt.Println("Width is", lx, "height is", ly);
 
-	if f.X < lx {
-		ch <- &w[f.X + 1][f.Y];
+		if f.X < lx {
+			ch <- &w[f.X + 1][f.Y];
+
+			if f.Y > 0 {
+				ch <- &w[f.X][f.Y-1];
+				ch <- &w[f.X + 1][f.Y-1];
+			}
+		}
 
 		if f.Y > 0 {
 			ch <- &w[f.X][f.Y-1];
-			ch <- &w[f.X + 1][f.Y-1];
 		}
-	}
 
-	if f.Y < ly {
-		ch <- &w[f.X][f.Y + 1]
+		if f.Y < ly {
+			ch <- &w[f.X][f.Y + 1]
+
+			if f.X > 0 {
+				ch <- &w[f.X - 1][f.Y + 1];
+			}
+		}
 
 		if f.X > 0 {
 			ch <- &w[f.X - 1][f.Y];
-			ch <- &w[f.X - 1][f.Y + 1];
 		}
-	}
 
-	if f.Y > 0 && f.X > 0 {
-		ch <- &w[f.X - 1][f.Y - 1];
-	}
+		if f.Y > 0 && f.X > 0 {
+			ch <- &w[f.X - 1][f.Y - 1];
+		}
 
-	if f.Y < ly && f.X < lx {
-		ch <- &w[f.X + 1][f.Y + 1];
-	}
+		if f.Y < ly && f.X < lx {
+			ch <- &w[f.X + 1][f.Y + 1];
+		}
 
-	close(ch);
+		ch <- nil;
+		//close(ch);
+	}
 }
 
 /*
  * The star of the show!
 */
 func aStar(w [][]Field, screen *sdl.Surface, start *Field, goal *Field) {
-	drawLine(w, screen, start, goal, LINE)
-	fillBox(screen, &w[start.X][start.Y], START);
-	fillBox(screen, &w[goal.X][goal.Y], GOAL);
+	var q, min *Field;
 
-	var ch chan *Field = make(chan *Field);
+	q = q.HeapInsert(start);
+	for q != nil {
+		min, q = q.HeapExtractMin();
 
-	go start.GetNeighbours(w, ch);
+		if min.X == goal.X && min.Y == goal.Y{
+			// Handle this, success
+			for min.origin != nil {
+				min = min.origin;
+				fillBox(min, PATH);
+			}
+			return
+		}
 
-	fmt.Println("First field was:", start);
-	start.prio = float32(start.X + start.Y)
-	for i := range ch {
-		i.prio = float32(i.X + i.Y);
-		fmt.Println("Inserting element:", i);
-		start = start.HeapInsert(i);
+		min.c = true
+
+		field_chan <- min;
+		for f := range read_field {
+			if f == nil {
+				break;
+			}
+
+			if f.c {
+				continue;
+			}
+
+			if f.T == WALL {
+				continue;
+			}
+
+			tg := min.g + 1;
+			min.c = true;
+			//fillBox(min, CLOSEDSET)
+
+			if f.o == false || tg < f.g {
+				f.origin = min;
+				f.g = tg;
+				if f.f == 0 {
+					f.f = float64(tg) + math.Hypot(float64(f.X - goal.X), float64(f.Y - goal.Y));
+				}
+				if !f.o {
+					f.o = true;
+					q = q.HeapInsert(f);
+					//fillBox(f, OPENSET)
+				}
+			}
+		}
 	}
 
-	var min *Field;
-
-	for start != nil {
-		min, start = start.HeapExtractMin();
-		fmt.Println("Field", min);
-	}
+	return;
 }
 
 func main() {
@@ -242,18 +296,20 @@ func main() {
 		int(v_info.Current_w),
 		int(v_info.Current_h),
 		32,
-		sdl.HWSURFACE | sdl.DOUBLEBUF)
+		sdl.HWSURFACE | sdl.DOUBLEBUF )
 
 	// Initialize our world
-	world = make([][]Field, v_info.Current_w)
+	world = make([][]Field, v_info.Current_w / SIZE)
 	for i := range world {
-		world[i] = make([]Field, v_info.Current_h)
+		world[i] = make([]Field, v_info.Current_h / SIZE)
 		for j := range world[i] {
 			world[i][j].X = i;
 			world[i][j].Y = j;
 			world[i][j].T = OPEN;
 			world[i][j].lsize = 0;
 			world[i][j].rsize = 0;
+			world[i][j].o     = false;
+			world[i][j].c     = false;
 		}
 	}
 
@@ -269,11 +325,18 @@ func main() {
 	sdl.WM_SetCaption("A* algorithm demo", "")
 
 	// Give the screen an initially and update display
-	screen.FillRect(nil, 0x33CCCC);
+	screen.FillRect(nil, OPEN);
 	screen.Flip()
 
 	/* Draw a grid on our display */
 	_, _  = drawSquare(screen)
+
+	paint_chan = make(chan *Paint, 20);
+	read_field = make(chan *Field);
+	field_chan = make(chan *Field);
+
+	go initFillBox(screen);
+	go GetNeighbours(world, read_field);
 
 	for true {
 		for ev := sdl.PollEvent(); ev != nil; ev = sdl.PollEvent() {
@@ -302,12 +365,12 @@ func main() {
 								start = new(Field)
 								start.ParseRect(r, OPEN)
 
-								fillBox(screen, start, START);
+								fillBox(start, START);
 							} else {
-								fillBox(screen, start, OPEN);
+								fillBox(start, OPEN);
 
 								start.ParseRect(r, OPEN);
-								fillBox(screen, start, START);
+								fillBox(start, START);
 							}
 
 							if start != nil && goal != nil {
@@ -319,11 +382,11 @@ func main() {
 								goal = new(Field)
 								goal.ParseRect(r, START)
 
-								fillBox(screen, goal, GOAL);
+								fillBox(goal, GOAL);
 							} else {
-								fillBox(screen, goal, OPEN);
+								fillBox(goal, OPEN);
 								goal.ParseRect(r, OPEN);
-								fillBox(screen, goal, GOAL);
+								fillBox(goal, GOAL);
 							}
 
 							if start != nil && goal != nil {
@@ -335,9 +398,9 @@ func main() {
 							//fmt.Println("Click on", f);
 
 							if f.T == OPEN {
-								fillBox(screen, f, WALL)
+								fillBox(f, WALL)
 							} else {
-								fillBox(screen, f, OPEN)
+								fillBox(f, OPEN)
 							}
 						}
 					}
@@ -419,7 +482,7 @@ func drawLine(w [][]Field, screen *sdl.Surface, from *Field, to *Field, color in
 	}
 
 	for true {
-		fillBox(screen, &w[(x0 - (x0%SIZE) + 1)/SIZE][(y0 - (y0%SIZE) + 1)/SIZE], color)
+		fillBox(&w[(x0 - (x0%SIZE) + 1)/SIZE][(y0 - (y0%SIZE) + 1)/SIZE], color)
 
 		if x0 == x1 && y0 == y1 {
 			break
@@ -439,15 +502,21 @@ func drawLine(w [][]Field, screen *sdl.Surface, from *Field, to *Field, color in
 	}
 }
 
-//func fillBox(w [][]int, screen *sdl.Surface, r *sdl.Rect, color int) {
-func fillBox(screen *sdl.Surface, f *Field, color int) {
-	if f.T == color {
-		return
-	}
+func initFillBox(screen *sdl.Surface) {
+	for i := range paint_chan {
+		if i.f.T == i.c {
+			continue;
+		}
 
-	f.T = color
-	screen.FillRect(f.toRect(), uint32(color))
-	screen.UpdateRect(f.ToFourTuple());
+		i.f.T = i.c
+		screen.FillRect(i.f.toRect(), uint32(i.c))
+		screen.UpdateRect(i.f.ToFourTuple());
+	}
+}
+
+func fillBox(f *Field, color int) {
+	p := &Paint{f, color}
+	paint_chan <- p
 }
 
 func drawMouseMotion(w [][]Field, screen *sdl.Surface, e *sdl.MouseMotionEvent) {
