@@ -75,6 +75,7 @@ var field_chan chan *Field;
 var read_field chan *Field;
 
 func (this *Field) HeapInsert(f *Field) (newRoot *Field){
+	/*{{{*/
 	if f == this {
 		return this;
 	}
@@ -125,6 +126,7 @@ func (this *Field) HeapInsert(f *Field) (newRoot *Field){
 	}
 
 	return newRoot;
+	/*}}}*/
 }
 
 /*
@@ -133,6 +135,7 @@ func (this *Field) HeapInsert(f *Field) (newRoot *Field){
  * the pointer of this
  */
 func (this *Field) HeapExtractMin() (f1, newRoot *Field){
+	/*{{{*/
 	if this.right == nil && this.left == nil {
 		// If both right and left are null, we just return ourselves
 		// and a nil newRoot, because the heap is then empty
@@ -185,6 +188,7 @@ func (this *Field) HeapExtractMin() (f1, newRoot *Field){
 	this.left = nil;
 
 	return this, newRoot;
+	/*}}}*/
 }
 
 func (f *Field) ParseRect(r *sdl.Rect, color int) {
@@ -208,6 +212,7 @@ func (f *Field) ToFourTuple() (X int32, Y int32, W uint32, H uint32){
 }
 
 func GetNeighbours(w [][]Field, ch chan<- *Field) {
+	/*{{{*/
 	for f := range field_chan {
 		lx := (len(w) - 1)
 		ly := (len(w[0]) - 1)
@@ -256,6 +261,7 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 
 		ch <- nil;
 	}
+	/*}}}*/
 }
 
 /*
@@ -403,7 +409,7 @@ func main() {
 				} else if e.Keysym.Sym == sdl.K_r {
 					/* If 'r' is pressed, run pathfinding */
 					if start != nil && goal != nil {
-						go aStar(world, screen, start, goal)
+						aStar(world, screen, start, goal)
 					}
 				}
 			case *sdl.MouseMotionEvent:
@@ -419,26 +425,25 @@ func main() {
 						if state[sdl.K_s] == 1 {
 							// Left mouse button with s, set new start point
 							if start == nil {
-								start = new(Field)
-								start.ParseRect(r, OPEN)
+								start = &world[int(r.X)/SIZE][int(r.Y)/SIZE];
 
 								fillBox(start, START);
 							} else {
 								fillBox(start, OPEN);
 
-								start.ParseRect(r, OPEN);
+								start = &world[int(r.X)/SIZE][int(r.Y)/SIZE];
 								fillBox(start, START);
 							}
 						} else if state[sdl.K_g] == 1 {
 							// Left mouse button with g, set new goal point
 							if goal == nil {
-								goal = new(Field)
-								goal.ParseRect(r, START)
+								goal = &world[int(r.X)/SIZE][int(r.Y)/SIZE];
 
 								fillBox(goal, GOAL);
 							} else {
 								fillBox(goal, OPEN);
-								goal.ParseRect(r, OPEN);
+
+								goal = &world[int(r.X)/SIZE][int(r.Y)/SIZE];
 								fillBox(goal, GOAL);
 							}
 						} else {
@@ -482,6 +487,7 @@ func getRect(p *sdl.MouseButtonEvent) *sdl.Rect{
  * Draw a grid on the display and return info about the Tile
  */
 func drawGrid(screen *sdl.Surface) {
+	/*{{{*/
 	vid := sdl.GetVideoInfo()
 
 	// First the vertical
@@ -501,9 +507,11 @@ func drawGrid(screen *sdl.Surface) {
 	}
 
 	return
+	/*}}}*/
 }
 
 func drawLine(w [][]Field, screen *sdl.Surface, from *Field, to *Field, color int) {
+	/*{{{*/
 	var x1, y1 int = to.X*SIZE, to.Y*SIZE;
 	var x0, y0 int = from.X*SIZE, from.Y*SIZE;
 	var sx, sy int
@@ -550,9 +558,11 @@ func drawLine(w [][]Field, screen *sdl.Surface, from *Field, to *Field, color in
 			y0 += sy
 		}
 	}
+	/*}}}*/
 }
 
 func initFillBox(screen *sdl.Surface) {
+	/*{{{*/
 	for i := range paint_chan {
 		if i.f.T == i.c {
 			continue;
@@ -562,6 +572,7 @@ func initFillBox(screen *sdl.Surface) {
 		screen.FillRect(i.f.toRect(), uint32(i.c))
 		//screen.UpdateRect(i.f.ToFourTuple());
 	}
+	/*}}}*/
 }
 
 func fillBox(f *Field, color int) {
@@ -570,6 +581,7 @@ func fillBox(f *Field, color int) {
 }
 
 func drawMouseMotion(w [][]Field, screen *sdl.Surface, e *sdl.MouseMotionEvent) {
+	/*{{{*/
 	var color int;
 	if e.State == sdl.BUTTON_LEFT {
 		color = WALL
@@ -587,6 +599,7 @@ func drawMouseMotion(w [][]Field, screen *sdl.Surface, e *sdl.MouseMotionEvent) 
 			Y: (int(e.Y) - int(e.Yrel))/SIZE,
 		},
 		color)
+	/*}}}*/
 }
 
 func abs(v int) int{

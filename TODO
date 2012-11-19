@@ -27,6 +27,8 @@
 
 * Reset with new grid size?
 
+* Find a fix for a dual monitor setup.
+
 ----------------------
 -------- Done --------
 ----------------------
@@ -36,3 +38,5 @@
 * Rename the main file to, whatever
 
 * Only run pathfinding when r is pressed
+
+* When a goal point is moved, recolour the old.
