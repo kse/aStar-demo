@@ -12,10 +12,10 @@
 * When pathfinding is running, and pathfinding is overwritten, stop
   pathfinding and recalculate.
 
-* Add BSD license to the program.
-
 * Add a readme file.
 
 ----------------------
 -------- Done --------
 ----------------------
+
+* Add BSD license to the program.
