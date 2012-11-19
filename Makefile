@@ -1,4 +1,4 @@
-SRC = src.go
+SRC = main.go field.go drawing.go
 OUT = astar
 
 all: build

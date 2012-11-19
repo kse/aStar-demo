@@ -40,3 +40,5 @@
 * Only run pathfinding when r is pressed
 
 * When a goal point is moved, recolour the old.
+
+* Why is start colored wrongly when search has ended?
