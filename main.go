@@ -121,7 +121,10 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 func resetPaths() {
 	for i:= range world {
 		for j := range world[i] {
-			w := world[i][j];
+			w := &world[i][j];
+			if w.T != WALL && w.T != OPEN {
+				fillBox(w, OPEN);
+			}
 			w.c = false;
 			w.o = false;
 			w.f = 0.0
@@ -131,9 +134,6 @@ func resetPaths() {
 			w.lsize = 0
 			w.rsize = 0
 			w.origin = nil;
-			if w.T != WALL && w.T != OPEN {
-				fillBox(&w, OPEN);
-			}
 		}
 	}
 	start = nil;
@@ -143,9 +143,9 @@ func resetPaths() {
 func resetComplete() {
 	for i:= range world {
 		for j := range world[i] {
-			w := world[i][j];
+			w := &world[i][j];
 			if w.T != OPEN {
-				fillBox(&w, OPEN);
+				fillBox(w, OPEN);
 			}
 			w.c = false;
 			w.o = false;
