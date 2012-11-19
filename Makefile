@@ -8,3 +8,6 @@ build:
 
 debug:
 	go build -ldflags "-s" -o $(OUT) $(SRC)
+
+clean:
+	rm -f $(OUT)
