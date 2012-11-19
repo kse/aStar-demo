@@ -16,10 +16,15 @@
 
 * The inevitable: Review comments 
 
-* Rename the main file to, whatever
+* Find a way to go "directly" to the goal. Because you can move diagonally,
+  it looks quite ugly. Maybe weight a diagonal move higher than a straight?
+
+* Split the code into several packages
 
 ----------------------
 -------- Done --------
 ----------------------
 
 * Add BSD license to the program.
+
+* Rename the main file to, whatever
