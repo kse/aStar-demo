@@ -32,6 +32,21 @@ import (
 	"github.com/banthar/Go-SDL/sdl"
 )
 
+type Field struct{
+	X int
+	Y int
+	T int
+	left  *Field
+	right *Field
+	lsize int
+	rsize int
+	f  float64  // Distance from start + estimated distance to goal
+	g  int      // Distance from start
+	c  bool
+	o  bool
+	origin *Field
+}
+
 func (f *Field) toRect() *sdl.Rect{
 	return &sdl.Rect{
 		X: int16(f.X*SIZE) + 1,
@@ -167,19 +182,4 @@ func (f *Field) ParseRect(r *sdl.Rect, color int) {
 func (f *Field) ToFourTuple() (X int32, Y int32, W uint32, H uint32){
 	r := f.toRect();
 	return int32(r.X), int32(r.Y), uint32(r.W), uint32(r.H);
-}
-
-type Field struct{
-	X int
-	Y int
-	T int
-	left  *Field
-	right *Field
-	lsize int
-	rsize int
-	f  float64  // Distance from start + estimated distance to goal
-	g  int      // Distance from start
-	c  bool
-	o  bool
-	origin *Field
 }

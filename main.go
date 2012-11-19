@@ -118,10 +118,21 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 	/*}}}*/
 }
 
+func resetPaths() {
+	for i:= range world {
+		for j := range world[i] {
+			if world[i][j].T != WALL && world[i][j].T != OPEN {
+				fillBox(&world[i][j], OPEN);
+			}
+		}
+	}
+}
+
 /*
  * The star of the show!
 */
 func aStar(w [][]Field, screen *sdl.Surface) {
+	/*{{{*/
 	var q, min *Field;
 
 	q = q.HeapInsert(start);
@@ -178,6 +189,7 @@ func aStar(w [][]Field, screen *sdl.Surface) {
 	}
 
 	return;
+	/*}}}*/
 }
 
 func main() {
@@ -258,6 +270,8 @@ func main() {
 				if e.Keysym.Sym == sdl.K_ESCAPE {
 					/* Quit when escape is pressed */
 					return
+				} else if e.Keysym.Sym == sdl.K_r && (e.Keysym.Mod & sdl.KMOD_LCTRL) != 0 {
+					resetPaths();
 				} else if e.Keysym.Sym == sdl.K_r {
 					/* If 'r' is pressed, run pathfinding */
 					if start != nil && goal != nil {
