@@ -38,12 +38,12 @@ type Field struct{
 	T int
 	left  *Field
 	right *Field
-	lsize int
-	rsize int
+	lsize int   // Size of the left tree
+	rsize int   // Size of the right tree
 	f  float64  // Distance from start + estimated distance to goal
 	g  int      // Distance from start
-	c  bool
-	o  bool
+	c  bool     // Whether field is in closed set
+	o  bool     // Whether field is in open set
 	origin *Field
 }
 

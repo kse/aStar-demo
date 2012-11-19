@@ -2,8 +2,6 @@
 -------- TODO --------
 ----------------------
 
-* Reset entire program by pressing CTRL+SHIFT+r
-
 * When pathfinding is not running and a path/open/closed is overwritten,
   remove the entire path, and try recalculating.
 
@@ -17,15 +15,14 @@
 * Find a way to go "directly" to the goal. Because you can move diagonally,
   it looks quite ugly. Maybe weight a diagonal move higher than a straight?
 
-* Split the code into several packages
-
-* Why are there fields left in open state, in the middle of closed states?
-
 * Make it possible to step through the pathfinding.
 
 * Reset with new grid size?
 
 * Find a fix for a dual monitor setup.
+
+* Reset with CTRL+r doesn't entirely reset the pathfinding, from time to
+  time it messes up, and won't start again
 
 ----------------------
 -------- Done --------
@@ -42,3 +39,9 @@
 * Why is start colored wrongly when search has ended?
 
 * Reset pathfinding by pressing CTRL+r
+
+* Why are there fields left in open state, in the middle of closed states?
+
+* Split the code into several packages
+
+* Reset entire program by pressing CTRL+SHIFT+r

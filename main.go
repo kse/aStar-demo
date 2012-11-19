@@ -121,11 +121,45 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 func resetPaths() {
 	for i:= range world {
 		for j := range world[i] {
-			if world[i][j].T != WALL && world[i][j].T != OPEN {
-				fillBox(&world[i][j], OPEN);
+			w := world[i][j];
+			w.c = false;
+			w.o = false;
+			w.f = 0.0
+			w.g = 0
+			w.left = nil
+			w.right = nil
+			w.lsize = 0
+			w.rsize = 0
+			w.origin = nil;
+			if w.T != WALL && w.T != OPEN {
+				fillBox(&w, OPEN);
 			}
 		}
 	}
+	start = nil;
+	goal = nil;
+}
+
+func resetComplete() {
+	for i:= range world {
+		for j := range world[i] {
+			w := world[i][j];
+			if w.T != OPEN {
+				fillBox(&w, OPEN);
+			}
+			w.c = false;
+			w.o = false;
+			w.f = 0.0
+			w.g = 0
+			w.left = nil
+			w.right = nil
+			w.lsize = 0
+			w.rsize = 0
+			w.origin = nil;
+		}
+	}
+	start = nil;
+	goal = nil;
 }
 
 /*
@@ -154,6 +188,7 @@ func aStar(w [][]Field, screen *sdl.Surface) {
 		}
 
 		min.c = true
+		fillBox(min, CLOSEDSET)
 
 		field_chan <- min;
 		for f := range read_field {
@@ -170,8 +205,6 @@ func aStar(w [][]Field, screen *sdl.Surface) {
 			}
 
 			tg := min.g + 1;
-			min.c = true;
-			fillBox(min, CLOSEDSET)
 
 			if f.o == false || tg < f.g {
 				f.origin = min;
@@ -270,6 +303,10 @@ func main() {
 				if e.Keysym.Sym == sdl.K_ESCAPE {
 					/* Quit when escape is pressed */
 					return
+				} else if e.Keysym.Sym == sdl.K_r &&
+					(e.Keysym.Mod & sdl.KMOD_LCTRL) != 0 &&
+					(e.Keysym.Mod & sdl.KMOD_LSHIFT) != 0 {
+					resetComplete();
 				} else if e.Keysym.Sym == sdl.K_r && (e.Keysym.Mod & sdl.KMOD_LCTRL) != 0 {
 					resetPaths();
 				} else if e.Keysym.Sym == sdl.K_r {
