@@ -2,7 +2,9 @@
 -------- TODO --------
 ----------------------
 
-* Reset entire program by pressing CTRL+r
+* Reset entire program by pressing CTRL+SHIFT+r
+
+* Reset pathfinding by pressing CTRL+r
 
 * When pathfinding is not running and a path/open/closed is overwritten,
   remove the entire path, and try recalculating.
@@ -18,6 +20,12 @@
   it looks quite ugly. Maybe weight a diagonal move higher than a straight?
 
 * Split the code into several packages
+
+* Why are there fields left in open state, in the middle of closed states?
+
+* Make it possible to step through the pathfinding.
+
+* Reset with new grid size?
 
 ----------------------
 -------- Done --------

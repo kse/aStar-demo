@@ -376,14 +376,18 @@ func main() {
 	screen.FillRect(nil, OPEN);
 	screen.Flip()
 
-	/* Draw a grid on our display */
-	_, _  = drawSquare(screen)
+	/* Draw the grid on our display */
+	drawGrid(screen)
 
+	/* Create the different channels we need */
 	paint_chan = make(chan *Paint, 2000);
 	read_field = make(chan *Field);
 	field_chan = make(chan *Field);
 
+	// Fillbox runs asynchronously, start it here
 	go initFillBox(screen);
+
+	// Getneighbours process runs all the time, starts here.
 	go GetNeighbours(world, read_field);
 
 	for true {
@@ -393,9 +397,14 @@ func main() {
 			case *sdl.QuitEvent:
 				return
 			case *sdl.KeyboardEvent:
-				/* Quit when escape is pressed */
 				if e.Keysym.Sym == sdl.K_ESCAPE {
+					/* Quit when escape is pressed */
 					return
+				} else if e.Keysym.Sym == sdl.K_r {
+					/* If 'r' is pressed, run pathfinding */
+					if start != nil && goal != nil {
+						go aStar(world, screen, start, goal)
+					}
 				}
 			case *sdl.MouseMotionEvent:
 				if e.State == sdl.BUTTON_LEFT || e.State == sdl.BUTTON_WHEELUP {
@@ -420,10 +429,6 @@ func main() {
 								start.ParseRect(r, OPEN);
 								fillBox(start, START);
 							}
-
-							if start != nil && goal != nil {
-								go aStar(world, screen, start, goal)
-							}
 						} else if state[sdl.K_g] == 1 {
 							// Left mouse button with g, set new goal point
 							if goal == nil {
@@ -435,10 +440,6 @@ func main() {
 								fillBox(goal, OPEN);
 								goal.ParseRect(r, OPEN);
 								fillBox(goal, GOAL);
-							}
-
-							if start != nil && goal != nil {
-								go aStar(world, screen, start, goal)
 							}
 						} else {
 							// No relevant modifiers were pressed, color the field.
@@ -480,7 +481,7 @@ func getRect(p *sdl.MouseButtonEvent) *sdl.Rect{
 /*
  * Draw a grid on the display and return info about the Tile
  */
-func drawSquare(screen *sdl.Surface) (x, y int) {
+func drawGrid(screen *sdl.Surface) {
 	vid := sdl.GetVideoInfo()
 
 	// First the vertical
@@ -499,7 +500,7 @@ func drawSquare(screen *sdl.Surface) (x, y int) {
 			screen.UpdateRect(0, int32(i), uint32(vid.Current_w), 1)
 	}
 
-	return SIZE, SIZE
+	return
 }
 
 func drawLine(w [][]Field, screen *sdl.Surface, from *Field, to *Field, color int) {
