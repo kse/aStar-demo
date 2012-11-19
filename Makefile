@@ -1,10 +1,10 @@
-all: graphics
+SRC = src.go
+OUT = display
 
-graphics:
-	go build -o display graphics.go
+all: build
+
+build:
+	go build -o $(OUT) $(SRC)
 
 debug:
-	go build -ldflags "-s" -o display graphics.go
-
-world:
-	go build -o world.a world.go
+	go build -ldflags "-s" -o $(OUT) $(SRC)
