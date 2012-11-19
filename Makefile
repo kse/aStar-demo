@@ -1,5 +1,5 @@
 SRC = src.go
-OUT = display
+OUT = astar
 
 all: build
 
