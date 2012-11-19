@@ -19,7 +19,7 @@ const (
 	CLOSEDSET = 0xCD0074
 
 	// Size of rectangles	
-	SIZE  = 10
+	SIZE  = 20
 )
 
 type Paint struct {
@@ -190,7 +190,9 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 
 			if f.Y > 0 {
 				ch <- &w[f.X][f.Y-1];
-				ch <- &w[f.X + 1][f.Y-1];
+				if w[f.X + 1][f.Y].T == OPEN && w[f.X][f.Y-1].T == OPEN {
+					ch <- &w[f.X + 1][f.Y-1];
+				}
 			}
 		}
 
@@ -202,7 +204,9 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 			ch <- &w[f.X][f.Y + 1]
 
 			if f.X > 0 {
-				ch <- &w[f.X - 1][f.Y + 1];
+				if w[f.X][f.Y + 1].T == OPEN && w[f.X - 1][f.Y].T == OPEN {
+					ch <- &w[f.X - 1][f.Y + 1];
+				}
 			}
 		}
 
@@ -211,15 +215,18 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 		}
 
 		if f.Y > 0 && f.X > 0 {
-			ch <- &w[f.X - 1][f.Y - 1];
+			if w[f.X - 1][f.Y].T == OPEN && w[f.X][f.Y - 1].T == OPEN {
+				ch <- &w[f.X - 1][f.Y - 1];
+			}
 		}
 
 		if f.Y < ly && f.X < lx {
-			ch <- &w[f.X + 1][f.Y + 1];
+			if w[f.X + 1][f.Y].T == OPEN && w[f.X][f.Y + 1].T == OPEN {
+				ch <- &w[f.X + 1][f.Y + 1];
+			}
 		}
 
 		ch <- nil;
-		//close(ch);
 	}
 }
 
@@ -234,7 +241,6 @@ func aStar(w [][]Field, screen *sdl.Surface, start *Field, goal *Field) {
 		min, q = q.HeapExtractMin();
 
 		if min.X == goal.X && min.Y == goal.Y{
-			// Handle this, success
 			for min.origin != nil {
 				min = min.origin;
 				fillBox(min, PATH);
@@ -260,7 +266,7 @@ func aStar(w [][]Field, screen *sdl.Surface, start *Field, goal *Field) {
 
 			tg := min.g + 1;
 			min.c = true;
-			//fillBox(min, CLOSEDSET)
+			fillBox(min, CLOSEDSET)
 
 			if f.o == false || tg < f.g {
 				f.origin = min;
@@ -271,7 +277,7 @@ func aStar(w [][]Field, screen *sdl.Surface, start *Field, goal *Field) {
 				if !f.o {
 					f.o = true;
 					q = q.HeapInsert(f);
-					//fillBox(f, OPENSET)
+					fillBox(f, OPENSET)
 				}
 			}
 		}
@@ -285,6 +291,7 @@ func main() {
 	var world [][]Field
 	var start *Field;
 	var goal *Field;
+	var rows, columns int32;
 
 	if sdl.Init(sdl.INIT_VIDEO) != 0 {
 		panic(sdl.GetError())
@@ -292,16 +299,29 @@ func main() {
 
 	v_info := sdl.GetVideoInfo()
 
+	//if v_info.Flags
+
 	var screen = sdl.SetVideoMode(
 		int(v_info.Current_w),
 		int(v_info.Current_h),
 		32,
-		sdl.HWSURFACE | sdl.DOUBLEBUF )
+		sdl.HWSURFACE | sdl.DOUBLEBUF)
+
+	rows = v_info.Current_w / SIZE;
+	columns = v_info.Current_h / SIZE;
+
+	if v_info.Current_w % SIZE != 0 {
+		rows += 1;
+	}
+
+	if v_info.Current_h % SIZE != 0 {
+		columns += 1;
+	}
 
 	// Initialize our world
-	world = make([][]Field, v_info.Current_w / SIZE)
+	world = make([][]Field, rows)
 	for i := range world {
-		world[i] = make([]Field, v_info.Current_h / SIZE)
+		world[i] = make([]Field, columns)
 		for j := range world[i] {
 			world[i][j].X = i;
 			world[i][j].Y = j;
@@ -331,7 +351,7 @@ func main() {
 	/* Draw a grid on our display */
 	_, _  = drawSquare(screen)
 
-	paint_chan = make(chan *Paint, 20);
+	paint_chan = make(chan *Paint, 2000);
 	read_field = make(chan *Field);
 	field_chan = make(chan *Field);
 
@@ -374,7 +394,7 @@ func main() {
 							}
 
 							if start != nil && goal != nil {
-								aStar(world, screen, start, goal)
+								go aStar(world, screen, start, goal)
 							}
 						} else if state[sdl.K_g] == 1 {
 							// Left mouse button with g, set new goal point
@@ -390,7 +410,7 @@ func main() {
 							}
 
 							if start != nil && goal != nil {
-								aStar(world, screen, start, goal)
+								go aStar(world, screen, start, goal)
 							}
 						} else {
 							// No relevant modifiers were pressed, color the field.
@@ -409,8 +429,9 @@ func main() {
 			}
 		}
 
-		// Delay for 25 milliseconds
-		sdl.Delay(25)
+		// Delay for 15 milliseconds
+		sdl.Delay(15)
+		screen.Flip();
 	}
 
 	fmt.Println("Exiting");
@@ -510,7 +531,7 @@ func initFillBox(screen *sdl.Surface) {
 
 		i.f.T = i.c
 		screen.FillRect(i.f.toRect(), uint32(i.c))
-		screen.UpdateRect(i.f.ToFourTuple());
+		//screen.UpdateRect(i.f.ToFourTuple());
 	}
 }
 
