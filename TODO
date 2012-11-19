@@ -4,8 +4,6 @@
 
 * Reset entire program by pressing CTRL+r
 
-* Only run pathfinding when r is pressed
-
 * When pathfinding is not running and a path/open/closed is overwritten,
   remove the entire path, and try recalculating.
 
@@ -28,3 +26,5 @@
 * Add BSD license to the program.
 
 * Rename the main file to, whatever
+
+* Only run pathfinding when r is pressed
