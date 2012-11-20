@@ -21,8 +21,8 @@
 
 * Find a fix for a dual monitor setup.
 
-* Reset with CTRL+r doesn't entirely reset the pathfinding, from time to
-  time it messes up, and won't start again
+* Because we can go diagonally, we actually end up searching too many fields,
+  because too many have the same distance..
 
 ----------------------
 -------- Done --------
@@ -44,4 +44,9 @@
 
 * Split the code into several packages
 
+* Reset with CTRL+r doesn't entirely reset the pathfinding, from time to
+  time it messes up, and won't start again
+
 * Reset entire program by pressing CTRL+SHIFT+r
+
+* Make it possible to not reset start/end points.

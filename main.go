@@ -118,7 +118,7 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 	/*}}}*/
 }
 
-func resetPaths() {
+func resetAllPaths() {
 	for i:= range world {
 		for j := range world[i] {
 			w := &world[i][j];
@@ -138,6 +138,26 @@ func resetPaths() {
 	}
 	start = nil;
 	goal = nil;
+}
+
+func resetPaths() {
+	for i:= range world {
+		for j := range world[i] {
+			w := &world[i][j];
+			if w.T != WALL && w.T != OPEN && w.T != GOAL && w.T != START {
+				fillBox(w, OPEN);
+			}
+			w.c = false;
+			w.o = false;
+			w.f = 0.0
+			w.g = 0
+			w.left = nil
+			w.right = nil
+			w.lsize = 0
+			w.rsize = 0
+			w.origin = nil;
+		}
+	}
 }
 
 func resetComplete() {
@@ -182,13 +202,15 @@ func aStar(w [][]Field, screen *sdl.Surface) {
 			fillBox(goal, GOAL)
 			fillBox(start, START)
 
-			goal = nil;
-			start = nil;
+			//goal = nil;
+			//start = nil;
 			return
 		}
 
 		min.c = true
-		fillBox(min, CLOSEDSET)
+		if min.T != START {
+			fillBox(min, CLOSEDSET)
+		}
 
 		field_chan <- min;
 		for f := range read_field {
@@ -308,9 +330,11 @@ func main() {
 					(e.Keysym.Mod & sdl.KMOD_LSHIFT) != 0 {
 					resetComplete();
 				} else if e.Keysym.Sym == sdl.K_r && (e.Keysym.Mod & sdl.KMOD_LCTRL) != 0 {
-					resetPaths();
+					resetAllPaths();
 				} else if e.Keysym.Sym == sdl.K_r {
-					/* If 'r' is pressed, run pathfinding */
+					resetPaths();
+				} else if e.Keysym.Sym == sdl.K_RETURN {
+					/* If RETURN is pressed, run pathfinding */
 					if start != nil && goal != nil {
 						aStar(world, screen)
 					}
