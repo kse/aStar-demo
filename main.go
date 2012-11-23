@@ -47,7 +47,7 @@ const (
 	CLOSEDSET = 0xCD0074
 
 	// Size of rectangles	
-	SIZE  = 20
+	SIZE  = 5
 )
 
 type Paint struct {
@@ -65,6 +65,18 @@ var start *Field;
 var goal *Field;
 var rows, columns int32;
 
+func isPassable(f *Field) bool{
+	switch(f.T) {
+	case OPENSET:
+		return true;
+	case CLOSEDSET:
+		return true;
+	case OPEN:
+		return true;
+	}
+	return false;
+}
+
 func GetNeighbours(w [][]Field, ch chan<- *Field) {
 	/*{{{*/
 	for f := range field_chan {
@@ -77,7 +89,7 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 
 			if f.Y > 0 {
 				ch <- &w[f.X][f.Y-1];
-				if w[f.X + 1][f.Y].T == OPEN && w[f.X][f.Y-1].T == OPEN {
+				if isPassable(&w[f.X + 1][f.Y]) || isPassable(&w[f.X][f.Y-1]) {
 					ch <- &w[f.X + 1][f.Y-1];
 				}
 			}
@@ -91,7 +103,7 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 			ch <- &w[f.X][f.Y + 1]
 
 			if f.X > 0 {
-				if w[f.X][f.Y + 1].T == OPEN && w[f.X - 1][f.Y].T == OPEN {
+				if isPassable(&w[f.X][f.Y + 1]) || isPassable(&w[f.X - 1][f.Y]) {
 					ch <- &w[f.X - 1][f.Y + 1];
 				}
 			}
@@ -102,13 +114,13 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 		}
 
 		if f.Y > 0 && f.X > 0 {
-			if w[f.X - 1][f.Y].T == OPEN && w[f.X][f.Y - 1].T == OPEN {
+			if isPassable(&w[f.X - 1][f.Y]) || isPassable(&w[f.X][f.Y - 1]) {
 				ch <- &w[f.X - 1][f.Y - 1];
 			}
 		}
 
 		if f.Y < ly && f.X < lx {
-			if w[f.X + 1][f.Y].T == OPEN && w[f.X][f.Y + 1].T == OPEN {
+			if isPassable(&w[f.X + 1][f.Y]) || isPassable(&w[f.X][f.Y + 1]) {
 				ch <- &w[f.X + 1][f.Y + 1];
 			}
 		}
@@ -118,11 +130,11 @@ func GetNeighbours(w [][]Field, ch chan<- *Field) {
 	/*}}}*/
 }
 
-func resetAllPaths() {
+func reset(t func(int) bool) {
 	for i:= range world {
 		for j := range world[i] {
 			w := &world[i][j];
-			if w.T != WALL && w.T != OPEN {
+			if t(w.T) {
 				fillBox(w, OPEN);
 			}
 			w.c = false;
@@ -136,48 +148,49 @@ func resetAllPaths() {
 			w.origin = nil;
 		}
 	}
+}
+
+func resetAllPaths() {
+	f := func(t int) (b bool) {
+		switch (t) {
+		case OPEN:
+			return false;
+		case WALL:
+			return false;
+		}
+		return true
+	}
+	reset(f);
 	start = nil;
 	goal = nil;
 }
 
 func resetPaths() {
-	for i:= range world {
-		for j := range world[i] {
-			w := &world[i][j];
-			if w.T != WALL && w.T != OPEN && w.T != GOAL && w.T != START {
-				fillBox(w, OPEN);
-			}
-			w.c = false;
-			w.o = false;
-			w.f = 0.0
-			w.g = 0
-			w.left = nil
-			w.right = nil
-			w.lsize = 0
-			w.rsize = 0
-			w.origin = nil;
+	f := func(t int) (b bool) {
+		switch (t) {
+		case OPEN:
+			return false;
+		case WALL:
+			return false;
+		case GOAL:
+			return false;
+		case START:
+			return false;
 		}
+		return true
 	}
+	reset(f);
 }
 
 func resetComplete() {
-	for i:= range world {
-		for j := range world[i] {
-			w := &world[i][j];
-			if w.T != OPEN {
-				fillBox(w, OPEN);
-			}
-			w.c = false;
-			w.o = false;
-			w.f = 0.0
-			w.g = 0
-			w.left = nil
-			w.right = nil
-			w.lsize = 0
-			w.rsize = 0
-			w.origin = nil;
+	f := func(t int) (b bool) {
+		switch (t) {
+		case OPEN:
+			return false;
 		}
+		return true
 	}
+	reset(f);
 	start = nil;
 	goal = nil;
 }
@@ -214,6 +227,7 @@ func aStar(w [][]Field, screen *sdl.Surface) {
 
 		field_chan <- min;
 		for f := range read_field {
+			var tg float64;
 			if f == nil {
 				break;
 			}
@@ -226,7 +240,11 @@ func aStar(w [][]Field, screen *sdl.Surface) {
 				continue;
 			}
 
-			tg := min.g + 1;
+			if abs(min.X - f.X) == 1 && abs(min.Y - f.Y) == 1 {
+				tg = min.g + 1.4;
+			} else {
+				tg = min.g + 1;
+			}
 
 			if f.o == false || tg < f.g {
 				f.origin = min;
@@ -276,9 +294,9 @@ func main() {
 	for i := range world {
 		world[i] = make([]Field, columns)
 		for j := range world[i] {
-			world[i][j].X = i;
-			world[i][j].Y = j;
-			world[i][j].T = OPEN;
+			world[i][j].X     = i;
+			world[i][j].Y     = j;
+			world[i][j].T     = OPEN;
 			world[i][j].lsize = 0;
 			world[i][j].rsize = 0;
 			world[i][j].o     = false;
@@ -336,7 +354,8 @@ func main() {
 				} else if e.Keysym.Sym == sdl.K_RETURN {
 					/* If RETURN is pressed, run pathfinding */
 					if start != nil && goal != nil {
-						aStar(world, screen)
+						//resetPaths();
+						go aStar(world, screen)
 					}
 				}
 			case *sdl.MouseMotionEvent:
@@ -391,7 +410,7 @@ func main() {
 		}
 
 		// Delay for 15 milliseconds
-		sdl.Delay(15)
+		sdl.Delay(30)
 		screen.Flip();
 	}
 
